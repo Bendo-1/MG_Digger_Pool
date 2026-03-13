@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DuST MG Digger Pool</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 20px;
+  }
+
+  h1 {
+    font-size: 2.2rem;
+    margin-bottom: 6px;
+    color: #e0a040;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    text-shadow: 0 0 20px rgba(224, 160, 64, 0.3);
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+    color: #888;
+    margin-bottom: 28px;
+  }
+
+  .pool-wrapper {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  table {
+    border-collapse: collapse;
+    background: #16213e;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  th {
+    background: #0f3460;
+    color: #e0a040;
+    padding: 12px 18px;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  th.corner {
+    background: #0a1628;
+    font-size: 0.7rem;
+    color: #666;
+    min-width: 100px;
+  }
+
+  th.row-header {
+    background: #0f3460;
+    text-align: center;
+    min-width: 60px;
+  }
+
+  td {
+    border: 1px solid #1a2744;
+    width: 110px;
+    height: 52px;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    font-size: 0.85rem;
+    position: relative;
+  }
+
+  td:hover {
+    background: #1e3a5f;
+    transform: scale(1.03);
+    z-index: 2;
+  }
+
+  td.claimed {
+    background: #1b4332;
+    color: #a7f3d0;
+    cursor: default;
+    font-weight: 600;
+  }
+
+  td.claimed:hover {
+    background: #1b4332;
+    transform: none;
+  }
+
+  td.loading-cell {
+    background: #1a2744;
+    color: #666;
+    cursor: wait;
+  }
+
+  /* Status bar */
+  .status-bar {
+    margin-bottom: 16px;
+    font-size: 0.8rem;
+    color: #666;
+    height: 20px;
+  }
+
+  .status-bar.error { color: #e05050; }
+  .status-bar.success { color: #4ade80; }
+
+  /* Modal */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .overlay.active { display: flex; }
+
+  .modal {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 12px;
+    padding: 28px 32px;
+    max-width: 360px;
+    width: 90%;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+
+  .modal h2 {
+    font-size: 1.1rem;
+    color: #e0a040;
+    margin-bottom: 16px;
+  }
+
+  .modal input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #1a2744;
+    border-radius: 6px;
+    background: #0a1628;
+    color: #eee;
+    font-size: 1rem;
+    outline: none;
+    margin-bottom: 16px;
+  }
+
+  .modal input:focus { border-color: #e0a040; }
+
+  .modal-btns {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .modal-btns button {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-claim {
+    background: #e0a040;
+    color: #1a1a2e;
+    font-weight: 600;
+  }
+  .btn-claim:hover { background: #f0b050; }
+  .btn-claim:disabled { background: #665530; cursor: wait; }
+
+  .btn-cancel {
+    background: #2a2a3e;
+    color: #aaa;
+  }
+  .btn-cancel:hover { background: #3a3a4e; }
+
+  .legend {
+    margin-top: 24px;
+    display: flex;
+    gap: 24px;
+    font-size: 0.8rem;
+    color: #888;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+  }
+
+  .swatch-open { background: #16213e; border: 1px solid #1a2744; }
+  .swatch-claimed { background: #1b4332; }
+
+  .btn-bar {
+    margin-top: 20px;
+    display: flex;
+    gap: 12px;
+  }
+
+  .btn-refresh, .btn-reset {
+    padding: 6px 16px;
+    border: 1px solid #444;
+    border-radius: 6px;
+    background: transparent;
+    color: #888;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+  .btn-refresh:hover { border-color: #4ade80; color: #4ade80; }
+  .btn-reset:hover { border-color: #e05050; color: #e05050; }
+
+  /* Loading spinner */
+  .spinner {
+    display: none;
+    margin-bottom: 16px;
+  }
+  .spinner.active { display: block; }
+  .spinner::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #444;
+    border-top-color: #e0a040;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<h1>DuST MG Digger Pool</h1>
+<p class="subtitle">Pick when you think the Digger will appear and how many squads will go to it!</p>
+
+<div class="spinner" id="spinner"></div>
+<div class="status-bar" id="status"></div>
+
+<div class="pool-wrapper">
+  <table id="pool-table">
+    <thead>
+      <tr>
+        <th class="corner">Squads ↓ &nbsp;/&nbsp; Time →</th>
+        <th>5 min</th>
+        <th>10 min</th>
+        <th>15 min</th>
+        <th>20 min</th>
+        <th>25 min</th>
+        <th>30 min</th>
+      </tr>
+    </thead>
+    <tbody id="pool-body"></tbody>
+  </table>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch swatch-open"></div> Open</div>
+  <div class="legend-item"><div class="legend-swatch swatch-claimed"></div> Claimed</div>
+</div>
+
+<div class="btn-bar">
+  <button class="btn-refresh" onclick="fetchClaims()">Refresh</button>
+</div>
+
+<!-- Claim Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modal-title">Claim This Square</h2>
+    <input type="text" id="name-input" placeholder="Enter your name" maxlength="20" autocomplete="off" />
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-claim" id="claim-btn" onclick="confirmClaim()">Claim</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
+// =============================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbx2J_3l0dyGUahdteQ5MNANpD6vjFP4N9u-oc4jriNMQ6NoyoU08CQx-cwMQf56WgY/exec';
+// =============================================
+
+const ROWS = 11; // 0 through 10
+const COLS = 6;  // 5, 10, 15, 20, 25, 30
+const TIME_LABELS = ['5 min', '10 min', '15 min', '20 min', '25 min', '30 min'];
+
+let poolData = Array.from({ length: ROWS }, () => Array(COLS).fill(''));
+let activeCell = null;
+let claiming = false;
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status-bar' + (type ? ' ' + type : '');
+  if (type === 'success') setTimeout(() => { el.textContent = ''; el.className = 'status-bar'; }, 3000);
+}
+
+function showSpinner(on) {
+  document.getElementById('spinner').classList.toggle('active', on);
+}
+
+// Fetch all claims from Google Sheet
+async function fetchClaims() {
+  showSpinner(true);
+  setStatus('Loading pool...');
+  try {
+    const resp = await fetch(API_URL);
+    const data = await resp.json();
+
+    // Reset grid
+    poolData = Array.from({ length: ROWS }, () => Array(COLS).fill(''));
+
+    // Fill in claims
+    if (data.claims) {
+      for (const c of data.claims) {
+        if (c.row >= 0 && c.row < ROWS && c.col >= 0 && c.col < COLS) {
+          poolData[c.row][c.col] = c.name;
+        }
+      }
+    }
+
+    buildTable();
+    setStatus('');
+  } catch (err) {
+    console.error(err);
+    setStatus('Failed to load — check your connection and API URL', 'error');
+  }
+  showSpinner(false);
+}
+
+// Submit a claim to Google Sheet
+async function submitClaim(row, col, name) {
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' }, // Apps Script needs this for CORS
+    body: JSON.stringify({ row, col, name })
+  });
+  return await resp.json();
+}
+
+function buildTable() {
+  const tbody = document.getElementById('pool-body');
+  tbody.innerHTML = '';
+  for (let r = 0; r < ROWS; r++) {
+    const tr = document.createElement('tr');
+    const th = document.createElement('th');
+    th.className = 'row-header';
+    th.textContent = r;
+    tr.appendChild(th);
+    for (let c = 0; c < COLS; c++) {
+      const td = document.createElement('td');
+      const name = poolData[r][c];
+      if (name) {
+        td.textContent = name;
+        td.className = 'claimed';
+      } else {
+        td.addEventListener('click', () => openModal(r, c));
+      }
+      td.dataset.row = r;
+      td.dataset.col = c;
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+}
+
+function openModal(row, col) {
+  activeCell = { row, col };
+  const diggers = row;
+  const time = TIME_LABELS[col];
+  document.getElementById('modal-title').textContent = `${diggers} squads @ ${time}`;
+  document.getElementById('name-input').value = '';
+  document.getElementById('claim-btn').disabled = false;
+  document.getElementById('overlay').classList.add('active');
+  setTimeout(() => document.getElementById('name-input').focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('active');
+  activeCell = null;
+}
+
+async function confirmClaim() {
+  if (claiming) return;
+  const name = document.getElementById('name-input').value.trim();
+  if (!name) return;
+  if (!activeCell) return;
+
+  claiming = true;
+  document.getElementById('claim-btn').disabled = true;
+  setStatus('Claiming square...', '');
+
+  try {
+    const result = await submitClaim(activeCell.row, activeCell.col, name);
+    if (result.status === 'ok') {
+      setStatus('Claimed!', 'success');
+      closeModal();
+      await fetchClaims(); // Refresh the board
+    } else {
+      setStatus(result.message || 'Could not claim square', 'error');
+      document.getElementById('claim-btn').disabled = false;
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus('Network error — try again', 'error');
+    document.getElementById('claim-btn').disabled = false;
+  }
+
+  claiming = false;
+}
+
+// Enter key to confirm
+document.getElementById('name-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') confirmClaim();
+  if (e.key === 'Escape') closeModal();
+});
+
+// Click overlay to close
+document.getElementById('overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('overlay')) closeModal();
+});
+
+// Auto-refresh every 30 seconds
+setInterval(fetchClaims, 30000);
+
+// Initial load
+fetchClaims();
+</script>
+</body>
+</html>
